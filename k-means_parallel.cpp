@@ -17,7 +17,7 @@ static const string DATASET_PATH = "../datasets/generated_blob_dataset_400k.csv"
 static const string CONFIG_FILE_PATH = "../config_files/config_sets.ini";
 static const string DESIRED_CONFIG = "4_cluster";
 static const int ITERATION_NUMBER = 10;
-static const int THREAD_NUMBER = 5;
+static const int THREAD_NUMBER = 10;
 
 struct DataPoints {
     std::vector<float> xs;
@@ -90,11 +90,13 @@ int main() {
     DataPoints centroids;
     int cluster_num;
     if (!initialize_centroids(centroids,cluster_num,CONFIG_FILE_PATH,DESIRED_CONFIG)) return -1;
+    vector<int> total_clusters_size(cluster_num);
+
 
     print_centroids(centroids);
 
     auto start_time = high_resolution_clock::now();
-#pragma omp parallel num_threads(THREAD_NUMBER) default(none) shared(dataPoints,centroids,cluster_num,cout)
+#pragma omp parallel num_threads(THREAD_NUMBER) default(none) shared(dataPoints,centroids,cluster_num,cout, total_clusters_size)
     {
         for (int iteration = 0; iteration < ITERATION_NUMBER; iteration++) {
 #pragma omp master
@@ -129,22 +131,49 @@ int main() {
                 clusters_size[cluster_type]++;
             }
 
-            for (int i=0; i< cluster_num; i++)
-
-            for (int i = 0; i < cluster_num; i++) {
+            /*for (int i = 0; i < cluster_num; i++) {
                 centroids.xs[i] = new_centroids.xs[i] / clusters_size[i];
                 centroids.ys[i] = new_centroids.ys[i] / clusters_size[i];
                 centroids.zs[i] = new_centroids.zs[i] / clusters_size[i];
+            }*/
+
+#pragma omp barrier
+#pragma omp master
+            {
+                for(int i = 0; i < cluster_num; i++){
+                    centroids.xs[i] = 0;
+                    centroids.ys[i] = 0;
+                    centroids.zs[i] = 0;
+                }
+            }
+#pragma omp barrier
+
+
+            for (int i = 0; i < cluster_num; i++) {
+#pragma omp critical (sum_xs)
+                centroids.xs[i] += new_centroids.xs[i];
+#pragma omp critical (sum_ys)
+                centroids.ys[i] += new_centroids.ys[i];
+#pragma omp critical (sum_zs)
+                centroids.zs[i] += new_centroids.zs[i];
+#pragma omp critical (sum_cluster_size)
+                total_clusters_size[i] += clusters_size[i];
             }
 
 #pragma omp master
             {
                 cout << endl;
-                for (int i = 0; i < cluster_num; i++)
-                    cout << "Cluster" << i + 1 << " size: " << clusters_size[i] << endl;
+                for (int i = 0; i < cluster_num; i++) {
+                    cout << "Cluster" << i + 1 << " size: " << total_clusters_size[i] << endl;
+                    centroids.xs[i] = centroids.xs[i]/total_clusters_size[i];
+                    centroids.ys[i] = centroids.ys[i]/total_clusters_size[i];
+                    centroids.zs[i] = centroids.zs[i]/total_clusters_size[i];
+                    total_clusters_size[i] = 0;
+                }
                 cout << endl;
                 print_centroids(centroids);
             }
+#pragma omp barrier
 
             /*for (int i=0; i < dataPoints.xs.size(); i++) {
                 float shortest_distance = sqrt(pow(centroids.xs[0] - dataPoints.xs[i], 2) + pow(centroids.ys[0] - dataPoints.ys[i], 2) + pow(centroids.zs[0] - dataPoints.zs[i], 2));
