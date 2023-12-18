@@ -12,7 +12,7 @@
 using namespace std;
 using namespace chrono;
 
-static const string DATASET_PATH = "../datasets/generated_blob_dataset_40k.csv";
+static const string DATASET_PATH = "../datasets/generated_blob_dataset_400k.csv";
 static const string CONFIG_FILE_PATH = "../config_files/config_sets.ini";
 static const string DESIRED_CONFIG = "4_cluster";
 static const int ITERATION_NUMBER = 10;
@@ -27,17 +27,23 @@ struct DataPoint {
     DataPoint(float x, float y, float z) : x(x), y(y), z(z) {}
 };
 
+void print_centroids(vector<DataPoint>& centroids) {
+    for (const auto& element : centroids) {
+        cout << "(" << (element).x << ", " << (element).y << ", " << (element).z << ")" << endl;
+    }
+}
+
 bool readDatasetFromFile(vector<DataPoint>& dataset, const string& dataset_path) {
     ifstream file(dataset_path);
     if (file.is_open()) {
        string line;
        cout << "Reading the dataset..." << endl;
         while (getline(file, line)) {
-            istringstream iss(line);
+            istringstream coordinates(line);
             DataPoint point;
             char delimiter1;
             char delimiter2;
-            if (iss >> point.x >> delimiter1 >> point.y >> delimiter2 >> point.z) {
+            if (coordinates >> point.x >> delimiter1 >> point.y >> delimiter2 >> point.z) {
                 dataset.push_back(point);
             }/* else {
                 cerr << "Error: Invalid line in file " << dataset_path << endl;
@@ -77,6 +83,7 @@ int main() {
     vector<DataPoint> centroids;
     int cluster_num;
     if (!initialize_centroids(centroids,cluster_num,CONFIG_FILE_PATH,DESIRED_CONFIG)) return -1;
+    vector<vector<DataPoint*>> clusters(cluster_num);
 
     //codice per scegliere randomicamente i k centroidi dagli n nodi
     /*vector<short> indexes(points.size());
@@ -85,11 +92,7 @@ int main() {
     shuffle(indexes.begin(), indexes.end(), default_random_engine(seed));
      for (short i=0; i<k; i++) centroids.push_back(points[indexes[i]]);*/
 
-    vector<vector<DataPoint*>> clusters(cluster_num);
-
-    for (const auto& element : centroids) {
-        cout << "(" << (element).x << ", " << (element).y << ", " << (element).z << ")" << endl;
-    }
+    print_centroids(centroids);
 
     auto start_time = high_resolution_clock::now();
     for (int iteration=0; iteration<ITERATION_NUMBER  ; iteration++) {
@@ -112,7 +115,6 @@ int main() {
                     cluster_type = j;
                 }
             }
-            //parte problematica per la parallelizzazione perché ci vuole sincronia
             new_centroids[cluster_type].x += points[i].x;
             new_centroids[cluster_type].y += points[i].y;
             new_centroids[cluster_type].z += points[i].z;
@@ -130,7 +132,6 @@ int main() {
             cout << "Cluster" << i+1 << " size: " << clusters_size[i] << endl;
         }
 
-
         /*for (int i=0; i < points.size(); i++) {
             float shortest_distance = sqrt(pow(centroids[0].x - points[i].x, 2) + pow(centroids[0].y - points[i].y, 2) + pow(centroids[0].z - points[i].z, 2));
             int cluster_type = 0;
@@ -143,11 +144,6 @@ int main() {
             }
             clusters[cluster_type].push_back(&points[i]);
 
-        }
-
-        cout << endl;
-        for (int i=0; i<clusters.size(); i++) {
-            cout << "Cluster size" << i+1 << ": " << clusters[i].size() << endl;
         }
 
         for (int i=0; i<clusters.size(); i++) {
@@ -165,14 +161,19 @@ int main() {
             centroids[i] = new_centroid;
         }
 
+
+        cout << endl;
+        for (int i=0; i<clusters.size(); i++) {
+            cout << "Cluster size" << i+1 << ": " << clusters[i].size() << endl;
+        }
+
+
         for (int i=0; i<clusters.size(); i++) {
             clusters[i].clear();
         }*/
 
         cout << endl;
-        for (const auto& element : centroids) {
-            cout << "(" << (element).x << ", " << (element).y << ", " << (element).z << ")" << endl;
-        }
+        print_centroids(centroids);
 
     }
     auto end_time = high_resolution_clock::now();

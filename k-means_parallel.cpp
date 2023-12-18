@@ -1,5 +1,6 @@
 #include <omp.h>
 #include <iostream>
+#include "INIReader.h"
 //#include <numeric>
 #include <fstream>
 #include <sstream>
@@ -12,8 +13,11 @@
 using namespace std;
 using namespace chrono;
 
-static const int CLUSTERS_NUMBER = 4;
+static const string DATASET_PATH = "../datasets/generated_blob_dataset_400k.csv";
+static const string CONFIG_FILE_PATH = "../config_files/config_sets.ini";
+static const string DESIRED_CONFIG = "4_cluster";
 static const int ITERATION_NUMBER = 10;
+static const int THREAD_NUMBER = 5;
 
 struct DataPoints {
     std::vector<float> xs;
@@ -21,19 +25,25 @@ struct DataPoints {
     std::vector<float> zs;
 };
 
-void readDatasetFromFile(DataPoints& dataset, const string& fullPath) {
+void print_centroids(DataPoints& centroids) {
+    for (int i=0; i<centroids.xs.size(); i++) {
+        cout << "(" << centroids.xs[i] << ", " << centroids.ys[i] << ", " << centroids.zs[i] << ")" << endl;
+    }
+}
+
+bool readDatasetFromFile(DataPoints& dataset, const string& fullPath) {
     ifstream file(fullPath);
     if (file.is_open()) {
         string line;
         cout << "Reading the dataset..." << endl;
         while (getline(file, line)) {
-            istringstream iss(line);
+            istringstream coordinates(line);
             float x;
             float y;
             float z;
             char delimiter1;
             char delimiter2;
-            if (iss >> x >> delimiter1 >> y >> delimiter2 >> z) {
+            if (coordinates >> x >> delimiter1 >> y >> delimiter2 >> z) {
                 dataset.xs.push_back(x);
                 dataset.ys.push_back(y);
                 dataset.zs.push_back(z);
@@ -43,48 +53,68 @@ void readDatasetFromFile(DataPoints& dataset, const string& fullPath) {
         }
         file.close();
         cout << "Dataset loaded from " << fullPath << endl;
+        return true;
     } else {
         cerr << "Error: Unable to open file " << fullPath << endl;
+        return false;
     }
+}
+
+bool initialize_centroids(DataPoints& centroids, int& cluster_num, const string& config_file_path, const string& desired_config) {
+    INIReader reader(config_file_path);
+    if (reader.ParseError() < 0) {
+        cerr << "Error loading config file\n";
+        return false;
+    }
+    cluster_num = reader.GetInteger(desired_config, "cluster_num", 0);
+    for(int i=0; i<cluster_num; i++)  {
+        istringstream coordinates(reader.Get(desired_config, "centroid"+ to_string(i), ""));
+        float x;
+        float y;
+        float z;
+        char delimiter1;
+        char delimiter2;
+        if (coordinates >> x >> delimiter1 >> y >> delimiter2 >> z){
+            centroids.xs.push_back(x);
+            centroids.ys.push_back(y);
+            centroids.zs.push_back(z);
+        }
+    }
+    return true;
 }
 
 int main() {
 
     DataPoints dataPoints;
-    readDatasetFromFile(dataPoints, "C:/Users/jaco3/OneDrive/Documenti/Unifi/Magistrale/ParallelProgramming/Elaborati/k-means/datasets/generated_blob_dataset_40k.csv");
-
+    if(!readDatasetFromFile(dataPoints, DATASET_PATH)) return -1;
     DataPoints centroids;
-    vector<DataPoints> clusters(CLUSTERS_NUMBER);
-    vector<float> centroid_xs = {10,10,10,10};
-    vector<float> centroid_ys = {6,3,-3,-6};
-    vector<float> centroid_zs = {0,0,0,0};
-    centroids.xs.insert(centroids.xs.end(),centroid_xs.begin(),centroid_xs.end());
-    centroids.ys.insert(centroids.ys.end(),centroid_ys.begin(),centroid_ys.end());
-    centroids.zs.insert(centroids.zs.end(),centroid_zs.begin(),centroid_zs.end());
+    int cluster_num;
+    if (!initialize_centroids(centroids,cluster_num,CONFIG_FILE_PATH,DESIRED_CONFIG)) return -1;
 
-    for (int i=0; i<CLUSTERS_NUMBER; i++) {
-        cout << "(" << centroids.xs[i] << ", " << centroids.ys[i] << ", " << centroids.zs[i] << ")" << endl;
-    }
+    print_centroids(centroids);
 
     auto start_time = high_resolution_clock::now();
-#pragma omp parallel num_threads(5)
+#pragma omp parallel num_threads(THREAD_NUMBER) default(none) shared(dataPoints,centroids,cluster_num,cout)
     {
         for (int iteration = 0; iteration < ITERATION_NUMBER; iteration++) {
+#pragma omp master
             cout << endl << "Iteration " << iteration + 1 << ":" << endl;
 
             DataPoints new_centroids;
-            vector<int> clusters_size(CLUSTERS_NUMBER);
+            vector<int> clusters_size(cluster_num);
             vector<float> default_coordinate = {0, 0, 0, 0};
-            new_centroids.xs.insert(new_centroids.xs.end(), centroid_xs.begin(), centroid_xs.end());
-            new_centroids.ys.insert(new_centroids.ys.end(), centroid_ys.begin(), centroid_ys.end());
-            new_centroids.zs.insert(new_centroids.zs.end(), centroid_zs.begin(), centroid_zs.end());
+            new_centroids.xs.insert(new_centroids.xs.end(), default_coordinate.begin(), default_coordinate.end());
+            new_centroids.ys.insert(new_centroids.ys.end(), default_coordinate.begin(), default_coordinate.end());
+            new_centroids.zs.insert(new_centroids.zs.end(), default_coordinate.begin(), default_coordinate.end());
 
+#pragma omp for schedule(static)
             for (int i = 0; i < dataPoints.xs.size(); i++) {
+                //cout << omp_get_thread_num();
                 float shortest_distance = sqrt(
                         pow(centroids.xs[0] - dataPoints.xs[i], 2) + pow(centroids.ys[0] - dataPoints.ys[i], 2) +
                         pow(centroids.zs[0] - dataPoints.zs[i], 2));
                 int cluster_type = 0;
-                for (int j = 1; j < CLUSTERS_NUMBER; j++) {
+                for (int j = 1; j < cluster_num; j++) {
                     float centroid_distance = sqrt(
                             pow(centroids.xs[j] - dataPoints.xs[i], 2) + pow(centroids.ys[j] - dataPoints.ys[i], 2) +
                             pow(centroids.zs[j] - dataPoints.zs[i], 2));
@@ -93,24 +123,28 @@ int main() {
                         cluster_type = j;
                     }
                 }
-                //parte problematica per la parallelizzazione perché ci vuole sincronia
                 new_centroids.xs[cluster_type] += dataPoints.xs[i];
                 new_centroids.ys[cluster_type] += dataPoints.ys[i];
                 new_centroids.zs[cluster_type] += dataPoints.zs[i];
                 clusters_size[cluster_type]++;
             }
 
-            for (int i = 0; i < CLUSTERS_NUMBER; i++) {
+            for (int i=0; i< cluster_num; i++)
+
+            for (int i = 0; i < cluster_num; i++) {
                 centroids.xs[i] = new_centroids.xs[i] / clusters_size[i];
                 centroids.ys[i] = new_centroids.ys[i] / clusters_size[i];
                 centroids.zs[i] = new_centroids.zs[i] / clusters_size[i];
             }
 
-            cout << endl;
-            for (int i = 0; i < CLUSTERS_NUMBER; i++) {
-                cout << "Cluster" << i + 1 << " size: " << clusters_size[i] << endl;
+#pragma omp master
+            {
+                cout << endl;
+                for (int i = 0; i < cluster_num; i++)
+                    cout << "Cluster" << i + 1 << " size: " << clusters_size[i] << endl;
+                cout << endl;
+                print_centroids(centroids);
             }
-
 
             /*for (int i=0; i < dataPoints.xs.size(); i++) {
                 float shortest_distance = sqrt(pow(centroids.xs[0] - dataPoints.xs[i], 2) + pow(centroids.ys[0] - dataPoints.ys[i], 2) + pow(centroids.zs[0] - dataPoints.zs[i], 2));
@@ -152,11 +186,6 @@ int main() {
                 clusters[i].ys.clear();
                 clusters[i].zs.clear();
             }*/
-
-            cout << endl;
-            for (int i = 0; i < CLUSTERS_NUMBER; i++) {
-                cout << "(" << centroids.xs[i] << ", " << centroids.ys[i] << ", " << centroids.zs[i] << ")" << endl;
-            }
         }
     }
     auto end_time = high_resolution_clock::now();

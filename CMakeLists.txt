@@ -10,5 +10,5 @@ include_directories("C:/Users/jaco3/OneDrive/Documenti/Unifi/Magistrale/Parallel
 add_executable(k_means_sequential k-means_sequential.cpp libraries/INIReader.cpp libraries/ini.c)
 add_executable(k_means_parallel k-means_parallel.cpp libraries/INIReader.cpp libraries/ini.c)
 
-target_link_libraries(k_means_sequential)
+target_link_libraries(k_means_sequential)   
 target_link_libraries(k_means_parallel)
