@@ -45,9 +45,7 @@ bool readDatasetFromFile(vector<DataPoint>& dataset, const string& dataset_path)
             char delimiter2;
             if (coordinates >> point.x >> delimiter1 >> point.y >> delimiter2 >> point.z) {
                 dataset.push_back(point);
-            }/* else {
-                cerr << "Error: Invalid line in file " << dataset_path << endl;
-            }*/
+            }
         }
         file.close();
         cout << "Dataset loaded from " << dataset_path << endl;
