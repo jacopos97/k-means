@@ -1,4 +1,3 @@
-#include <omp.h>
 #include <iostream>
 #include "INIReader.h"
 //#include <numeric>
