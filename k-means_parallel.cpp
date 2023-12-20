@@ -1,12 +1,9 @@
 #include <iostream>
 #include "INIReader.h"
-//#include <numeric>
 #include <fstream>
 #include <sstream>
 #include <vector>
-#include <algorithm>
 #include <chrono>
-#include <random>
 #include <cmath>
 
 using namespace std;
@@ -16,10 +13,11 @@ static const string DATASET_PATH = "../datasets/generated_blob_dataset_400k.csv"
 static const string CONFIG_FILE_PATH = "../config_files/config_sets.ini";
 static const string DESIRED_CONFIG = "4_cluster";
 static const int ITERATION_NUMBER = 10;
-static const int THREAD_NUMBER = 1;
+static const int THREAD_NUMBER = 4;
 
 struct DataPoints {
-    std::vector<float> xs;
+    std::vector<float>
+            xs;
     std::vector<float> ys;
     std::vector<float> zs;
 };
@@ -137,13 +135,13 @@ int main() {
             }
 
             for (int i = 0; i < cluster_num; i++) {
-#pragma omp critical (sum_xs)
+#pragma omp atomic
                 centroids.xs[i] += new_centroids.xs[i];
-#pragma omp critical (sum_ys)
+#pragma omp atomic
                 centroids.ys[i] += new_centroids.ys[i];
-#pragma omp critical (sum_zs)
+#pragma omp atomic
                 centroids.zs[i] += new_centroids.zs[i];
-#pragma omp critical (sum_cluster_size)
+#pragma omp atomic
                 total_clusters_size[i] += clusters_size[i];
             }
 #pragma omp barrier
@@ -160,47 +158,6 @@ int main() {
                 cout << endl;
                 print_centroids(centroids);
             }
-
-            /*for (int i=0; i < dataPoints.xs.size(); i++) {
-                float shortest_distance = sqrt(pow(centroids.xs[0] - dataPoints.xs[i], 2) + pow(centroids.ys[0] - dataPoints.ys[i], 2) + pow(centroids.zs[0] - dataPoints.zs[i], 2));
-                int cluster_type = 0;
-                for (int j=1; j<CLUSTERS_NUMBER; j++) {
-                    float centroid_distance = sqrt(pow(centroids.xs[j] - dataPoints.xs[i], 2) + pow(centroids.ys[j] - dataPoints.ys[i], 2) + pow(centroids.zs[j] - dataPoints.zs[i], 2));
-                    if (centroid_distance < shortest_distance) {
-                        shortest_distance = centroid_distance;
-                        cluster_type = j;
-                    }
-                }
-                clusters[cluster_type].xs.push_back(dataPoints.xs[i]);
-                clusters[cluster_type].ys.push_back(dataPoints.ys[i]);
-                clusters[cluster_type].zs.push_back(dataPoints.zs[i]);
-            }
-
-            cout << endl;
-            for (int i=0; i<clusters.size(); i++) {
-                cout << "Cluster size" << i+1 << ": " << clusters[i].xs.size() << endl;
-            }
-
-            for (int i=0; i<CLUSTERS_NUMBER; i++) {
-                float new_centroid_x = 0;
-                float new_centroid_y = 0;
-                float new_centroid_z = 0;
-                int cluster_size = clusters[i].xs.size();
-                for (int j=0; j<cluster_size; j++) {
-                    new_centroid_x += clusters[i].xs[j];
-                    new_centroid_y += clusters[i].ys[j];
-                    new_centroid_z += clusters[i].zs[j];
-                }
-                centroids.xs[i] = new_centroid_x/cluster_size;
-                centroids.ys[i] = new_centroid_y/cluster_size;
-                centroids.zs[i] = new_centroid_z/cluster_size;
-            }
-
-            for (int i=0; i<CLUSTERS_NUMBER; i++) {
-                clusters[i].xs.clear();
-                clusters[i].ys.clear();
-                clusters[i].zs.clear();
-            }*/
         }
     }
     auto end_time = high_resolution_clock::now();

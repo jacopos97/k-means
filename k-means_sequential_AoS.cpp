@@ -1,12 +1,9 @@
 #include <iostream>
 #include "INIReader.h"
-//#include <numeric>
 #include <fstream>
 #include <sstream>
 #include <vector>
-#include <algorithm>
 #include <chrono>
-#include <random>
 #include <cmath>
 
 using namespace std;
@@ -83,13 +80,6 @@ int main() {
     if (!initialize_centroids(centroids,cluster_num,CONFIG_FILE_PATH,DESIRED_CONFIG)) return -1;
     vector<vector<DataPoint*>> clusters(cluster_num);
 
-    //codice per scegliere randomicamente i k centroidi dagli n nodi
-    /*vector<short> indexes(points.size());
-    iota(indexes.begin(), indexes.end(), 0);
-    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
-    shuffle(indexes.begin(), indexes.end(), default_random_engine(seed));
-     for (short i=0; i<k; i++) centroids.push_back(points[indexes[i]]);*/
-
     print_centroids(centroids);
 
     auto start_time = high_resolution_clock::now();
@@ -129,46 +119,6 @@ int main() {
         for (int i=0; i < cluster_num; i++) {
             cout << "Cluster" << i+1 << " size: " << clusters_size[i] << endl;
         }
-
-        /*for (int i=0; i < points.size(); i++) {
-            float shortest_distance = sqrt(pow(centroids[0].x - points[i].x, 2) + pow(centroids[0].y - points[i].y, 2) + pow(centroids[0].z - points[i].z, 2));
-            int cluster_type = 0;
-            for (int j=1; j<centroids.size(); j++) {
-                float centroid_distance = sqrt(pow(centroids[j].x - points[i].x, 2) + pow(centroids[j].y - points[i].y, 2) + pow(centroids[j].z - points[i].z, 2));
-                if (centroid_distance < shortest_distance) {
-                    shortest_distance = centroid_distance;
-                    cluster_type = j;
-                }
-            }
-            clusters[cluster_type].push_back(&points[i]);
-
-        }
-
-        for (int i=0; i<clusters.size(); i++) {
-            DataPoint new_centroid;
-            int cluster_size = clusters[i].size();
-            for (int j=0; j<cluster_size; j++) {
-                new_centroid.x += clusters[i][j]->x;
-                new_centroid.y += clusters[i][j]->y;
-                new_centroid.z += clusters[i][j]->z;
-            }
-            new_centroid.x = new_centroid.x/cluster_size;
-            new_centroid.y = new_centroid.y/cluster_size;
-            new_centroid.z = new_centroid.z/cluster_size;
-
-            centroids[i] = new_centroid;
-        }
-
-
-        cout << endl;
-        for (int i=0; i<clusters.size(); i++) {
-            cout << "Cluster size" << i+1 << ": " << clusters[i].size() << endl;
-        }
-
-
-        for (int i=0; i<clusters.size(); i++) {
-            clusters[i].clear();
-        }*/
 
         cout << endl;
         print_centroids(centroids);
