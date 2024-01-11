@@ -1,6 +1,6 @@
 # Implementazione dell'algoritmo k-means in più versioni
 
-Questo repository contiene diverse implementazioni dell'algoritmo k-mean. Le versioni attualmente presenti sono:
+Questo repository contiene diverse implementazioni dell'algoritmo k-means. Le versioni attualmente presenti sono:
 
 - **k-means_sequential_AoS:** k-means in versione sequenziale dove i punti sono memorizzati come un array di strutture;
    
@@ -18,4 +18,4 @@ Per ciascuna versione del k-means è possibile eseguire vari test modificando le
    
 - **ITERATION_NUMBER:** numero di iterazioni desiderate per un'esecuzione di k-means.
 
-Inoltre, il file `k_means_sequential` permette di modificare il numero di thread utilizzabili per un'esecuzione del k-means attraverso la variabile `THREAD_NUMBER`.
+Inoltre, il file `k-means_parallel` permette di modificare il numero di thread utilizzabili per un'esecuzione del k-means attraverso la variabile `THREAD_NUMBER`.
