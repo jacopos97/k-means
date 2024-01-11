@@ -13,7 +13,7 @@ static const string DATASET_PATH = "../datasets/generated_blob_dataset_400k.csv"
 static const string CONFIG_FILE_PATH = "../config_files/config_sets.ini";
 static const string DESIRED_CONFIG = "4_cluster";
 static const int ITERATION_NUMBER = 10;
-static const int THREAD_NUMBER = 4;
+static const int THREAD_NUMBER = 16;
 
 struct DataPoints {
     std::vector<float>
@@ -22,7 +22,7 @@ struct DataPoints {
     std::vector<float> zs;
 };
 
-void print_centroids(DataPoints& centroids) {
+void printCentroids(DataPoints& centroids) {
     for (int i=0; i<centroids.xs.size(); i++) {
         cout << "(" << centroids.xs[i] << ", " << centroids.ys[i] << ", " << centroids.zs[i] << ")" << endl;
     }
@@ -55,15 +55,15 @@ bool readDatasetFromFile(DataPoints& dataset, const string& fullPath) {
     }
 }
 
-bool initialize_centroids(DataPoints& centroids, int& cluster_num, const string& config_file_path, const string& desired_config) {
-    INIReader reader(config_file_path);
+bool initializeCentroids(DataPoints& centroids, int& clusterNum, const string& configFilePath, const string& desiredConfig) {
+    INIReader reader(configFilePath);
     if (reader.ParseError() < 0) {
         cerr << "Error loading config file\n";
         return false;
     }
-    cluster_num = reader.GetInteger(desired_config, "cluster_num", 0);
-    for(int i=0; i<cluster_num; i++)  {
-        istringstream coordinates(reader.Get(desired_config, "centroid"+ to_string(i), ""));
+    clusterNum = reader.GetInteger(desiredConfig, "cluster_num", 0);
+    for(int i=0; i < clusterNum; i++)  {
+        istringstream coordinates(reader.Get(desiredConfig, "centroid" + to_string(i), ""));
         float x;
         float y;
         float z;
@@ -83,85 +83,85 @@ int main() {
     DataPoints dataPoints;
     if(!readDatasetFromFile(dataPoints, DATASET_PATH)) return -1;
     DataPoints centroids;
-    int cluster_num;
-    if (!initialize_centroids(centroids,cluster_num,CONFIG_FILE_PATH,DESIRED_CONFIG)) return -1;
-    vector<int> total_clusters_size(cluster_num);
+    int clusterNum;
+    if (!initializeCentroids(centroids, clusterNum, CONFIG_FILE_PATH, DESIRED_CONFIG)) return -1;
+    vector<int> totalClustersSize(clusterNum);
 
 
-    print_centroids(centroids);
+    printCentroids(centroids);
 
-    auto start_time = high_resolution_clock::now();
-#pragma omp parallel num_threads(THREAD_NUMBER) default(none) shared(dataPoints,centroids,cluster_num,cout,total_clusters_size)
+    auto startTime = high_resolution_clock::now();
+#pragma omp parallel num_threads(THREAD_NUMBER) default(none) shared(dataPoints,centroids,clusterNum,cout,totalClustersSize)
     {
         for (int iteration = 0; iteration < ITERATION_NUMBER; iteration++) {
 #pragma omp master
             cout << endl << "Iteration " << iteration + 1 << ":" << endl;
 
-            DataPoints new_centroids;
-            vector<int> clusters_size(cluster_num);
-            vector<float> default_coordinate(cluster_num);
-            new_centroids.xs.insert(new_centroids.xs.end(), default_coordinate.begin(), default_coordinate.end());
-            new_centroids.ys.insert(new_centroids.ys.end(), default_coordinate.begin(), default_coordinate.end());
-            new_centroids.zs.insert(new_centroids.zs.end(), default_coordinate.begin(), default_coordinate.end());
+            DataPoints newCentroids;
+            vector<int> clustersSize(clusterNum);
+            vector<float> defaultCoordinate(clusterNum);
+            newCentroids.xs.insert(newCentroids.xs.end(), defaultCoordinate.begin(), defaultCoordinate.end());
+            newCentroids.ys.insert(newCentroids.ys.end(), defaultCoordinate.begin(), defaultCoordinate.end());
+            newCentroids.zs.insert(newCentroids.zs.end(), defaultCoordinate.begin(), defaultCoordinate.end());
 
 #pragma omp for schedule(static)
             for (int i = 0; i < dataPoints.xs.size(); i++) {
-                float shortest_distance = sqrt(
+                float shortestDistance = sqrt(
                         pow(centroids.xs[0] - dataPoints.xs[i], 2) + pow(centroids.ys[0] - dataPoints.ys[i], 2) +
                         pow(centroids.zs[0] - dataPoints.zs[i], 2));
-                int cluster_type = 0;
-                for (int j = 1; j < cluster_num; j++) {
-                    float centroid_distance = sqrt(
+                int clusterType = 0;
+                for (int j = 1; j < clusterNum; j++) {
+                    float centroidDistance = sqrt(
                             pow(centroids.xs[j] - dataPoints.xs[i], 2) + pow(centroids.ys[j] - dataPoints.ys[i], 2) +
                             pow(centroids.zs[j] - dataPoints.zs[i], 2));
-                    if (centroid_distance < shortest_distance) {
-                        shortest_distance = centroid_distance;
-                        cluster_type = j;
+                    if (centroidDistance < shortestDistance) {
+                        shortestDistance = centroidDistance;
+                        clusterType = j;
                     }
                 }
-                new_centroids.xs[cluster_type] += dataPoints.xs[i];
-                new_centroids.ys[cluster_type] += dataPoints.ys[i];
-                new_centroids.zs[cluster_type] += dataPoints.zs[i];
-                clusters_size[cluster_type]++;
+                newCentroids.xs[clusterType] += dataPoints.xs[i];
+                newCentroids.ys[clusterType] += dataPoints.ys[i];
+                newCentroids.zs[clusterType] += dataPoints.zs[i];
+                clustersSize[clusterType]++;
             }
 
 #pragma omp single
             {
-                for(int i = 0; i < cluster_num; i++){
+                for(int i = 0; i < clusterNum; i++){
                     centroids.xs[i] = 0;
                     centroids.ys[i] = 0;
                     centroids.zs[i] = 0;
                 }
             }
 
-            for (int i = 0; i < cluster_num; i++) {
+            for (int i = 0; i < clusterNum; i++) {
 #pragma omp atomic
-                centroids.xs[i] += new_centroids.xs[i];
+                centroids.xs[i] += newCentroids.xs[i];
 #pragma omp atomic
-                centroids.ys[i] += new_centroids.ys[i];
+                centroids.ys[i] += newCentroids.ys[i];
 #pragma omp atomic
-                centroids.zs[i] += new_centroids.zs[i];
+                centroids.zs[i] += newCentroids.zs[i];
 #pragma omp atomic
-                total_clusters_size[i] += clusters_size[i];
+                totalClustersSize[i] += clustersSize[i];
             }
 #pragma omp barrier
 #pragma omp single
             {
                 cout << endl;
-                for (int i = 0; i < cluster_num; i++) {
-                    cout << "Cluster" << i + 1 << " size: " << total_clusters_size[i] << endl;
-                    centroids.xs[i] = centroids.xs[i]/total_clusters_size[i];
-                    centroids.ys[i] = centroids.ys[i]/total_clusters_size[i];
-                    centroids.zs[i] = centroids.zs[i]/total_clusters_size[i];
-                    total_clusters_size[i] = 0;
+                for (int i = 0; i < clusterNum; i++) {
+                    cout << "Cluster" << i + 1 << " size: " << totalClustersSize[i] << endl;
+                    centroids.xs[i] = centroids.xs[i] / totalClustersSize[i];
+                    centroids.ys[i] = centroids.ys[i] / totalClustersSize[i];
+                    centroids.zs[i] = centroids.zs[i] / totalClustersSize[i];
+                    totalClustersSize[i] = 0;
                 }
                 cout << endl;
-                print_centroids(centroids);
+                printCentroids(centroids);
             }
         }
     }
-    auto end_time = high_resolution_clock::now();
-    auto time = duration_cast<microseconds>(end_time - start_time).count() / 1000.f;
+    auto endTime = high_resolution_clock::now();
+    auto time = duration_cast<microseconds>(endTime - startTime).count() / 1000.f;
     cout << "Duration: " << time << " ms" << endl;
 
     return 0;

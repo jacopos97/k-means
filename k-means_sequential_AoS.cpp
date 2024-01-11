@@ -24,14 +24,14 @@ struct DataPoint {
     DataPoint(float x, float y, float z) : x(x), y(y), z(z) {}
 };
 
-void print_centroids(vector<DataPoint>& centroids) {
+void printCentroids(vector<DataPoint>& centroids) {
     for (const auto& element : centroids) {
         cout << "(" << (element).x << ", " << (element).y << ", " << (element).z << ")" << endl;
     }
 }
 
-bool readDatasetFromFile(vector<DataPoint>& dataset, const string& dataset_path) {
-    ifstream file(dataset_path);
+bool readDatasetFromFile(vector<DataPoint>& dataset, const string& datasetPath) {
+    ifstream file(datasetPath);
     if (file.is_open()) {
        string line;
        cout << "Reading the dataset..." << endl;
@@ -45,23 +45,23 @@ bool readDatasetFromFile(vector<DataPoint>& dataset, const string& dataset_path)
             }
         }
         file.close();
-        cout << "Dataset loaded from " << dataset_path << endl;
+        cout << "Dataset loaded from " << datasetPath << endl;
         return true;
     } else {
-         cerr << "Error: Unable to open file " << dataset_path << endl;
+         cerr << "Error: Unable to open file " << datasetPath << endl;
         return false;
     }
 }
 
-bool initialize_centroids(vector<DataPoint>& centroids, int& cluster_num, const string& config_file_path, const string& desired_config) {
-    INIReader reader(config_file_path);
+bool initializeCentroids(vector<DataPoint>& centroids, int& clusterNum, const string& configFilePath, const string& desiredConfig) {
+    INIReader reader(configFilePath);
     if (reader.ParseError() < 0) {
         cerr << "Error loading config file\n";
         return false;
     }
-    cluster_num = reader.GetInteger(desired_config, "cluster_num", 0);
-    for(int i=0; i<cluster_num; i++)  {
-        istringstream coordinates(reader.Get(desired_config, "centroid"+ to_string(i), ""));
+    clusterNum = reader.GetInteger(desiredConfig, "cluster_num", 0);
+    for(int i=0; i < clusterNum; i++)  {
+        istringstream coordinates(reader.Get(desiredConfig, "centroid" + to_string(i), ""));
         DataPoint centroid;
         char delimiter1;
         char delimiter2;
@@ -76,56 +76,56 @@ int main() {
     vector<DataPoint> points;
     if(!readDatasetFromFile(points, DATASET_PATH)) return -1;
     vector<DataPoint> centroids;
-    int cluster_num;
-    if (!initialize_centroids(centroids,cluster_num,CONFIG_FILE_PATH,DESIRED_CONFIG)) return -1;
-    vector<vector<DataPoint*>> clusters(cluster_num);
+    int clusterNum;
+    if (!initializeCentroids(centroids, clusterNum, CONFIG_FILE_PATH, DESIRED_CONFIG)) return -1;
+    vector<vector<DataPoint*>> clusters(clusterNum);
 
-    print_centroids(centroids);
+    printCentroids(centroids);
 
-    auto start_time = high_resolution_clock::now();
+    auto startTime = high_resolution_clock::now();
     for (int iteration=0; iteration<ITERATION_NUMBER  ; iteration++) {
         cout << endl << "Iteration " << iteration+1 << ":" << endl;
 
-        vector<DataPoint> new_centroids(cluster_num);
-        vector<int> clusters_size(cluster_num);
-        for (int i=0; i<cluster_num; i++){
+        vector<DataPoint> newCentroids(clusterNum);
+        vector<int> clustersSize(clusterNum);
+        for (int i=0; i < clusterNum; i++){
             DataPoint datapoint;
-            new_centroids.emplace_back(datapoint);
+            newCentroids.emplace_back(datapoint);
         }
 
         for (int i=0; i < points.size(); i++) {
-            float shortest_distance = sqrt(pow(centroids[0].x - points[i].x, 2) + pow(centroids[0].y - points[i].y, 2) + pow(centroids[0].z - points[i].z, 2));
-            int cluster_type = 0;
+            float shortestDistance = sqrt(pow(centroids[0].x - points[i].x, 2) + pow(centroids[0].y - points[i].y, 2) + pow(centroids[0].z - points[i].z, 2));
+            int clusterType = 0;
             for (int j=1; j<centroids.size(); j++) {
-                float centroid_distance = sqrt(pow(centroids[j].x - points[i].x, 2) + pow(centroids[j].y - points[i].y, 2) + pow(centroids[j].z - points[i].z, 2));
-                if (centroid_distance < shortest_distance) {
-                    shortest_distance = centroid_distance;
-                    cluster_type = j;
+                float centroidDistance = sqrt(pow(centroids[j].x - points[i].x, 2) + pow(centroids[j].y - points[i].y, 2) + pow(centroids[j].z - points[i].z, 2));
+                if (centroidDistance < shortestDistance) {
+                    shortestDistance = centroidDistance;
+                    clusterType = j;
                 }
             }
-            new_centroids[cluster_type].x += points[i].x;
-            new_centroids[cluster_type].y += points[i].y;
-            new_centroids[cluster_type].z += points[i].z;
-            clusters_size[cluster_type]++;
+            newCentroids[clusterType].x += points[i].x;
+            newCentroids[clusterType].y += points[i].y;
+            newCentroids[clusterType].z += points[i].z;
+            clustersSize[clusterType]++;
         }
 
         for (int i=0; i<centroids.size(); i++) {
-            centroids[i].x = new_centroids[i].x/clusters_size[i];
-            centroids[i].y = new_centroids[i].y/clusters_size[i];
-            centroids[i].z = new_centroids[i].z/clusters_size[i];
+            centroids[i].x = newCentroids[i].x / clustersSize[i];
+            centroids[i].y = newCentroids[i].y / clustersSize[i];
+            centroids[i].z = newCentroids[i].z / clustersSize[i];
         }
 
         cout << endl;
-        for (int i=0; i < cluster_num; i++) {
-            cout << "Cluster" << i+1 << " size: " << clusters_size[i] << endl;
+        for (int i=0; i < clusterNum; i++) {
+            cout << "Cluster" << i+1 << " size: " << clustersSize[i] << endl;
         }
 
         cout << endl;
-        print_centroids(centroids);
+        printCentroids(centroids);
 
     }
-    auto end_time = high_resolution_clock::now();
-    auto time = duration_cast<microseconds>(end_time - start_time).count() / 1000.f;
+    auto endTime = high_resolution_clock::now();
+    auto time = duration_cast<microseconds>(endTime - startTime).count() / 1000.f;
     cout << "Duration: " << time << " ms" << endl;
 
     return 0;
