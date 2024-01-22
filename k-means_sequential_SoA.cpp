@@ -9,7 +9,7 @@
 using namespace std;
 using namespace chrono;
 
-static const string DATASET_PATH = "../datasets/generated_blob_dataset_40k.csv";
+static const string DATASET_PATH = "../datasets/generated_blob_dataset_400k.csv";
 static const string CONFIG_FILE_PATH = "../config_files/config_sets.ini";
 static const string DESIRED_CONFIG = "4_cluster";
 static const int ITERATION_NUMBER = 10;
